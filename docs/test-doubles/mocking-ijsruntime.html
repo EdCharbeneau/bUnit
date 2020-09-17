@@ -1,0 +1,181 @@
+﻿<!DOCTYPE html>
+<!--[if IE]><![endif]-->
+<html>
+  
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Mocking Blazor's IJSRuntime | bUnit </title>
+    <meta name="viewport" content="width=device-width">
+    <meta name="title" content="Mocking Blazor's IJSRuntime | bUnit ">
+    <meta name="generator" content="docfx 2.53.1.0">
+    <meta name="description" content="bUnit is a unit testing library for Blazor Components. You can easily define components under test in C# or Razor syntax and verify outcome using semantic HTML diffing/comparison logic. You can interact with and inspect components, trigger event handlers, provide cascading values, inject services, mock IJsRuntime, and perform snapshot testing.">
+    <!--<link rel="shortcut icon" href="../../favicon.ico">-->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="stylesheet" href="../../styles/docfx.vendor.css">
+    <link rel="stylesheet" href="../../styles/docfx.css">
+    <link rel="stylesheet" href="../../styles/main.css">
+    <meta property="docfx:navrel" content="../../toc.html">
+    <meta property="docfx:tocrel" content="../toc.html">
+    
+    <meta property="docfx:rel" content="../../">
+    
+  </head>
+  <body data-spy="scroll" data-target="#affix" data-offset="120">
+    <div id="wrapper">
+      <header>
+        
+        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
+          <div class="container">
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+              
+              <a class="navbar-brand" href="../../index.html">
+                <img height="60%" id="logo" class="img" src="../..//images/blazor-logo.png" alt="bUnit">
+                <span>bUnit</span>
+              </a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar">
+              <form class="navbar-form navbar-right" role="search" id="search">
+                <div class="form-group">
+                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
+                </div>
+              </form>
+            </div>
+          </div>
+        </nav>
+      </header>
+      <div class="container body-content">
+        
+        <div id="search-results">
+          <div class="search-list"></div>
+          <div class="sr-items">
+            <p><i class="glyphicon glyphicon-refresh index-loading"></i></p>
+          </div>
+          <ul id="pagination"></ul>
+        </div>
+      </div>
+      <div role="main" class="container body-content hide-when-search">
+        
+        <div class="sidenav hide-when-search">
+          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
+          <div class="sidetoggle collapse" id="sidetoggle">
+            <div id="sidetoc"></div>
+          </div>
+        </div>
+        <div class="article row grid-right">
+          <div class="col-md-10">
+            <article class="content wrap" id="_content" data-uid="mocking-ijsruntime">
+<h1 id="mocking-blazors-ijsruntime">Mocking Blazor's <code>IJSRuntime</code></h1>
+
+<p>It is common for Blazor components to use <code>IJSRuntime</code> to call JavaScript, and since bUnit does not run JavaScript, mocking <code>IJSRuntime</code> is needed for components that uses it. In that regard, <code>IJSRuntime</code> is no different than other services that a component might depend on.</p>
+<p>bUnit comes with a tailor built mock of <code>IJSRuntime</code>, that allows you to specify how JavaScript interop calls should be handled, what values they should return, and to verify that they have happened.</p>
+<p>If you have more complex mocking needs, or you prefer to use the same mocking framework for all mocking in your tests to keep things consistent, general purpose mocking frameworks like <a href="https://github.com/Moq">Moq</a>, <a href="https://github.com/telerik/JustMockLite">JustMock Lite</a>, or <a href="https://nsubstitute.github.io/">NSubstitute</a> all works nicely with bUnit.</p>
+<p>The following sections shows how to use the built-in mock of <code>IJSRuntime</code>.</p>
+<h2 id="registering-the-mock-ijsruntime">Registering the mock <code>IJSRuntime</code></h2>
+<p>A mock of <code>IJSRuntime</code> must be added to the <code>Services</code> collection, just like other services that a component under test requires. This is done like so:</p>
+<pre><code class="lang-csharp">using var ctx = new TestContext();
+var mockJS = ctx.Services.AddMockJSRuntime();
+</code></pre>
+<p>Calling <code>AddMockJSRuntime()</code> returns a <a class="xref" href="../../api/Bunit.TestDoubles.JSInterop.MockJSRuntimeInvokeHandler.html">MockJSRuntimeInvokeHandler</a>, which is used to set up expected calls and verify invocations.</p>
+<h3 id="strict-vs-loose-mode">Strict vs loose mode</h3>
+<p>The <code>AddMockJSRuntime()</code> method takes an optional <a class="xref" href="../../api/Bunit.TestDoubles.JSInterop.JSRuntimeMockMode.html">JSRuntimeMockMode</a> parameter as input, which defaults to <code>Loose</code>, if not provided.</p>
+<ul>
+<li><strong>Loose</strong> mode configures the mock to just return the default value when it receives an invocation that has not been explicitly set up, e.g. if a component calls <code>InvokeAsync&lt;int&gt;(...)</code> the mock will simply return <code>default(int)</code> back to it immediately.</li>
+<li><strong>Strict</strong> mode configures the mock to throw an exception if it is invoked with a method call it has <em>not</em> been set up to handle explicitly. This is useful if you want to ensure that a component only performs a specific set of <code>IJSRuntime</code> invocations.</li>
+</ul>
+<p>To set the mock to strict mode, do the following:</p>
+<pre><code class="lang-csharp">using var ctx = new TestContext();
+var mockJS = ctx.Services.AddMockJSRuntime(JSRuntimeMockMode.Strict);
+</code></pre>
+<h2 id="setting-up-invocations">Setting up invocations</h2>
+<p>Use the <code>Setup&lt;TResult&gt;(...)</code> and <code>SetupVoid(...)</code> methods to configure the mock to handle calls from the matching <code>InvokeAsync&lt;TResult&gt;(...)</code> and <code>InvokeVoidAsync(...)</code> methods on <code>IJSRuntime</code>.</p>
+<p>When an invocation is set up through the <code>Setup&lt;TResult&gt;(...)</code> and <code>SetupVoid(...)</code> methods, a <code>JSRuntimePlannedInvocation&lt;TResult&gt;</code> object is returned. This can be used to set a result or an exception, to emulate what can happen during a JavaScript interop call in Blazor.</p>
+<p>Here are two examples:</p>
+<pre><code class="lang-csharp">using var ctx = new TestContext();
+var mockJS = ctx.Services.AddMockJSRuntime();
+
+// Set up an invocation and specify the result value immidiately
+mockJS.Setup&lt;string&gt;(&quot;getPageTitle&quot;).SetResult(&quot;bUnit is awesome&quot;);
+
+// Set up an invocation without specifying the result
+var plannedInvocation = mockJS.SetupVoid(&quot;startAnimation&quot;);
+
+// ... other test code
+
+// Later in the test, mark the invocation as completed.
+// SetResult() is not used in this case since InvokeVoidAsync
+// only completes or throws, it doesnt return a value.
+// Any calls to InvokeVoidAsync(...) up till this point will
+// have received an incompleted Task which the component 
+// is likely awaiting until the call to SetCompleted() below.
+plannedInvocation.SetCompleted();
+</code></pre>
+<h2 id="verifying-invocations">Verifying invocations</h2>
+<p>All calls to the <code>InvokeAsync&lt;TResult&gt;(...)</code> and <code>InvokeVoidAsync(...)</code> methods on the mock are stored in its <code>Invocations</code> list, which can be inspected and asserted against. In addition to this, all planned invocations has their own <code>Invocations</code> list, which only contains their invocations.</p>
+<p>Invocations are represented by the <code>JSRuntimeInvocation</code> type, which has three properties of interest when verifying an invocation happened as expected:</p>
+<ul>
+<li><code>Identifier</code> - the name of the function name/identifier passed to the invoke method.</li>
+<li><code>Arguments</code> - a list of arguments passed to the invoke method.</li>
+<li><code>CancellationToken</code> - the cancellation token passed to the invoke method (if any).</li>
+</ul>
+</article>
+          </div>
+          
+          <div class="hidden-sm col-md-2" role="complementary">
+            <div class="sideaffix">
+              <div class="sponsor-highlight">
+                <a href="https://www.telerik.com/campaigns/blazor/free-trial-1?utm_source=egilhansen&utm_medium=cpm&utm_campaign=blazor-trial-bunit-sponsored-message">
+                  <img width="200" src="/sponsors/progress-blazor-300x250.png" alt="Telerik UI for Blazor – Get 40+ native Blazor UI components to build high-performing web apps. Give it a try">
+                </a>
+                <p>
+                  <i>Telerik UI for Blazor – Get 50+ native Blazor UI components to build high-performing web apps. 
+                  <a href="https://www.telerik.com/campaigns/blazor/free-trial-1?utm_source=egilhansen&utm_medium=cpm&utm_campaign=blazor-trial-bunit-sponsored-message">Give it a try</a>.</i>
+                </p>
+              </div>
+          
+              <div class="contribution">
+                <ul class="nav">
+                  <li>
+                    <a href="https://github.com/egil/bUnit/blob/main/docs/site/docs/test-doubles/mocking-ijsruntime.md/#L1" class="contribution-link">Improve this Doc</a>
+                  </li>
+                </ul>
+              </div>
+              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
+              <!-- <p><a class="back-to-top" href="#top">Back to top</a><p> -->
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <footer>
+        <div class="grad-bottom"></div>
+        <div class="footer">
+          <div class="container">
+            <span class="pull-right">
+              <a href="#top">Back to top</a>
+            </span>
+            <small>Documentation updated on 9/17/2020 7:50:24 AM +00:00 in commit 263181264f</small>.
+          </div>
+        </div>
+      </footer>
+    </div>
+    
+    <script type="text/javascript" src="../../styles/docfx.vendor.js"></script>
+    <script type="text/javascript" src="../../styles/cshtml-razor.js"></script>
+    <script>
+      hljs.registerLanguage('cshtml-razor', window.hljsDefineCshtmlRazor);
+    </script>
+    <script type="text/javascript" src="../../styles/docfx.js"></script>
+    <script type="text/javascript" src="../../styles/main.js"></script>
+  </body>
+</html>
